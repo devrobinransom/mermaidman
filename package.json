@@ -1,0 +1,14 @@
+{
+  "name": "mermaidman",
+  "version": "0.1.0",
+  "private": true,
+  "packageManager": "pnpm@11.5.1",
+  "scripts": {
+    "dev": "pnpm --filter web dev",
+    "dev:raw": "pnpm --filter web dev:raw",
+    "build": "pnpm --filter web build",
+    "start": "pnpm --filter web start",
+    "lint": "pnpm --filter web lint",
+    "wasm:build": "cd apps/web/src/rust-engine && wasm-pack build --target web && cp pkg/mermaidman_engine.js pkg/mermaidman_engine_bg.wasm pkg/mermaidman_engine.d.ts ../../public/wasm/"
+  }
+}

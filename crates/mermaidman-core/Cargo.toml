@@ -1,0 +1,42 @@
+[package]
+name = "mermaidman-core"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+description = "Platform-agnostic core engine for Mermaidman"
+
+[lib]
+crate-type = ["lib"]
+
+[dependencies]
+# Serialization
+serde.workspace = true
+serde_json.workspace = true
+
+# IDs & hashing
+uuid = { version = "1.0", features = ["v4", "serde"] }
+sha2 = "0.10"
+base64 = "0.22"
+
+# Parsing
+nom = "7"
+regex = "1.10"
+
+# Graph algorithms
+petgraph = "0.6"
+indexmap = { version = "2.0", features = ["serde"] }
+
+# Errors
+thiserror.workspace = true
+anyhow.workspace = true
+
+# Note: Using indexmap for stable key ordering in canonical.rs
+
+[dev-dependencies]
+pretty_assertions = "1.4"
+
+[features]
+default = []
+# Future: tree-sitter for advanced incremental parsing
+# tree-sitter = ["dep:tree-sitter", "dep:tree-sitter-mermaid"]

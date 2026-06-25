@@ -1,0 +1,32 @@
+# Issue Backlog
+
+Generated from docs/ai-ux-2026.md and related specs.
+
+## Issues
+- R0-01 Directive schema versioning and canonical JSON ordering (docs/issues/R0-01-directive-schema-versioning-and-canonical-json-ordering.md)
+- R0-02 Node kind registry for diagram, media, oembed, and code (docs/issues/R0-02-node-kind-registry-for-diagram-media-oembed-and-code.md)
+- R0-03 Rust WASM parser support for nested diagram payloads (docs/issues/R0-03-rust-wasm-parser-support-for-nested-diagram-payloads.md)
+- R0-04 AI directive model for provenance (docs/issues/R0-04-ai-directive-model-for-provenance.md)
+- R0-05 Directive index cache for uid lookup (docs/issues/R0-05-directive-index-cache-for-uid-lookup.md)
+- R1-01 Nested diagram editor opens on double-click (docs/issues/R1-01-nested-diagram-editor-opens-on-double-click.md)
+- R1-02 Breadcrumbs and back action for nested diagrams (docs/issues/R1-02-breadcrumbs-and-back-action-for-nested-diagrams.md)
+- R1-03 Parent node live thumbnail preview (docs/issues/R1-03-parent-node-live-thumbnail-preview.md)
+- R1-04 Code node editor and renderer (docs/issues/R1-04-code-node-editor-and-renderer.md)
+- R1-05 AI actions for selection (summarize, refactor, explain) (docs/issues/R1-05-ai-actions-for-selection-summarize-refactor-explain.md)
+- R2-01 Home explorer with recent, starred, and shared filters (docs/issues/R2-01-home-explorer-with-recent-starred-and-shared-filters.md)
+- R2-02 Search by title, tag, or content snippet (docs/issues/R2-02-search-by-title-tag-or-content-snippet.md)
+- R2-03 Open diagrams in window or tab based on preference (docs/issues/R2-03-open-diagrams-in-window-or-tab-based-on-preference.md)
+- R2-04 Window focus and tab stacks (docs/issues/R2-04-window-focus-and-tab-stacks.md)
+- R2-05 Save and restore named views (docs/issues/R2-05-save-and-restore-named-views.md)
+- R2-06 Session persistence for last open workspace (docs/issues/R2-06-session-persistence-for-last-open-workspace.md)
+- R3-01 Image node support with caption and fit mode (docs/issues/R3-01-image-node-support-with-caption-and-fit-mode.md)
+- R3-02 Video node support with poster and playback (docs/issues/R3-02-video-node-support-with-poster-and-playback.md)
+- R3-03 Audio node support with waveform and duration (docs/issues/R3-03-audio-node-support-with-waveform-and-duration.md)
+- R3-04 oEmbed node support with fetch, cache, and sanitize (docs/issues/R3-04-oembed-node-support-with-fetch-cache-and-sanitize.md)
+- R3-05 Semantic zoom tiers for nodes (docs/issues/R3-05-semantic-zoom-tiers-for-nodes.md)
+- R3-06 Concept gravity and magnetic connectors (docs/issues/R3-06-concept-gravity-and-magnetic-connectors.md)
+- R4-01 Event log for UID-first operations (docs/issues/R4-01-event-log-for-uid-first-operations.md)
+- R4-02 CRDT-ready merge strategy (docs/issues/R4-02-crdt-ready-merge-strategy.md)
+- R4-03 Doc-as-Graph import with AI and fallback heuristics (docs/issues/R4-03-doc-as-graph-import-with-ai-and-fallback-heuristics.md)
+- R4-04 Graph-as-Doc export (docs/issues/R4-04-graph-as-doc-export.md)
+- R4-05 Trial nudge UX and analytics (docs/issues/R4-05-trial-nudge-ux-and-analytics.md)

@@ -1,0 +1,17 @@
+packages:
+  - 'apps/*'
+  - 'packages/*'
+
+# Supply-chain hardening: block transitive deps from git/exotic sources
+# (we use only the npm registry, so this is zero-friction).
+blockExoticSubdeps: true
+
+# Native build scripts we explicitly trust to run on install.
+allowBuilds:
+  sharp: true
+  unrs-resolver: true
+
+# NOTE: trustPolicy:no-downgrade and minimumReleaseAge were intentionally
+# omitted — trustPolicy blocked a legitimate types-only package (undici-types,
+# a transitive dep of @types/node) as a false "downgrade", and minimumReleaseAge
+# changes resolution by publish date. Re-enable if you adopt a vetted lockfile.

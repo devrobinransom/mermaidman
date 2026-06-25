@@ -1,0 +1,12 @@
+# Rust build artifacts
+target/
+
+# Tauri build artifacts
+gen/
+WixTools/
+
+# App icons (keep source, ignore generated)
+icons/*.icns
+icons/*.ico
+!icons/icon.png
+!icons/icon.svg

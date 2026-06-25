@@ -1,0 +1,36 @@
+{
+  "productName": "Mermaidman",
+  "version": "0.1.0",
+  "identifier": "com.mermaidman.app",
+  "build": {
+    "beforeDevCommand": "pnpm --filter web dev",
+    "devUrl": "http://localhost:3000",
+    "beforeBuildCommand": "pnpm --filter web build",
+    "frontendDist": "../apps/web/out"
+  },
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ]
+  },
+  "app": {
+    "windows": [
+      {
+        "title": "Mermaidman",
+        "width": 1280,
+        "height": 800,
+        "resizable": true,
+        "fullscreen": false
+      }
+    ],
+    "security": {
+      "csp": null
+    }
+  }
+}
