@@ -216,6 +216,32 @@ export const upsertEdgeDirective = (
   return `${trimmed}${suffix}${replacement}\n`;
 };
 
+/**
+ * Upsert an `%% @ai: <key> {...}` provenance directive. The parser ignores
+ * these lines (they ride in the text as an audit trail), so the body is free
+ * form — typically { action, model, ts, ... }. Keyed by node/edge id.
+ */
+export const upsertAiDirective = (
+  input: string,
+  key: string,
+  patch: PlainObject
+): string => {
+  const escapedId = escapeRegExp(key);
+  const directiveRegex = new RegExp(
+    `^%%\\s*@ai:\\s*${escapedId}\\s*(\\{.*\\})\\s*$`,
+    "m"
+  );
+  const match = input.match(directiveRegex);
+  const mergedBody = mergeObjects(parseDirectiveBody(match?.[1]), patch);
+  const replacement = `%% @ai: ${key} ${JSON.stringify(mergedBody)}`;
+  if (match) {
+    return input.replace(directiveRegex, replacement);
+  }
+  const trimmed = input.trimEnd();
+  const suffix = trimmed.length > 0 ? "\n" : "";
+  return `${trimmed}${suffix}${replacement}\n`;
+};
+
 /** Remove the `%% @edge: <eid> {...}` directive line. */
 export const removeEdgeDirective = (input: string, eid: string): string => {
   const directiveRegex = new RegExp(

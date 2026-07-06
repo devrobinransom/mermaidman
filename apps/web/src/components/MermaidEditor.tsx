@@ -22,9 +22,10 @@ import ReactFlow, {
     MarkerType,
 } from 'reactflow';
 import { SmoothConnectionLine } from './SmoothConnectionLine';
-import { MousePointer2, Square, Type, Spline } from 'lucide-react';
+import { CreationDrawer, type InsertNodeOpts } from './CreationDrawer';
+import { MousePointer2, Square, Type, Spline, Plus, Sparkles, Loader2, ListTree, Network } from 'lucide-react';
 import { MermaidNode } from './MermaidNode';
-import { type NodeMeta, type DiagramMeta, type CodeMeta, type MediaMeta, type MermaidNodeData } from '@/types/mermaid';
+import { type NodeMeta, type DiagramMeta, type CodeMeta, type MediaMeta, type MermaidNodeData, type NodeStyle } from '@/types/mermaid';
 import 'reactflow/dist/style.css';
 import { useMermaidEngine } from '@/hooks/useMermaidEngine';
 import { getLayoutedNodes } from '@/utils/layout';
@@ -61,6 +62,7 @@ import {
 } from '@/store/graphStore';
 import {
     insertTopologyEdgeLine,
+    insertNodeDeclaration,
     replaceTopologyEdgeLine,
     removeTopologyEdgeLine,
     upsertEdgeDirective,
@@ -70,6 +72,7 @@ import {
     hasTopologyEdge,
     nextMermaidId,
     setNodeShape,
+    upsertAiDirective,
 } from '@/utils/mermaidman';
 import { exportToMermaid } from '@/utils/export';
 
@@ -134,6 +137,13 @@ function MermaidEditorContent() {
     // Local code state for the current view (root or nested)
     const [code, setCode] = useState(activeFile?.content || '');
 
+    // Always-current `code` (for effects that must compare without depending on
+    // it) and a guard so a store->code pull doesn't bounce back as a code->store
+    // push (the two would otherwise oscillate; see the sync effects below).
+    const codeRef = useRef(code);
+    codeRef.current = code;
+    const pullingRef = useRef(false);
+
     // Nested-diagram navigation + selection state (declared before the sync
     // effects below, which read diagramStack.length in their dependency arrays).
     const [diagramStack, setDiagramStack] = useState<
@@ -160,36 +170,47 @@ function MermaidEditorContent() {
         return () => window.removeEventListener('keydown', handleKeyDown);
     }, [undo, redo]);
 
-    // Sync 1: Reset view when switching files
+    // Sync 1: Reset the view ONLY when the active file changes (a switch).
+    // Keyed on activeFileId, not `files` — depending on `files` would re-run on
+    // every content write and fight Sync 3 (infinite update loop).
     useEffect(() => {
         if (activeFileId && files[activeFileId]) {
+            pullingRef.current = true; // this is a store->code load, not a user edit
             setDiagramStack([]);
             setCurrentTitle(files[activeFileId].title);
             setCurrentParentNodeId(undefined);
-            // Content sync handled by effect below
             setCode(files[activeFileId].content);
         }
-    }, [activeFileId, files]);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [activeFileId]);
 
-    // Sync 2: Handle external content updates (Undo/Redo)
+    // Sync 2: Pull external content changes (Undo/Redo) into local code.
+    // Compares via codeRef so it doesn't need `code` in deps (which would make
+    // it fire on user typing and bounce against Sync 3).
     useEffect(() => {
         if (activeFileId && files[activeFileId] && diagramStack.length === 0) {
             const storeContent = files[activeFileId].content;
-            // Only update local code if it differs from store (e.g. after Undo)
-            // AND we sort of trust that if we just typed it, code matches store.
-            if (code !== storeContent) {
+            if (codeRef.current !== storeContent) {
+                pullingRef.current = true; // store->code pull
                 setCode(storeContent);
             }
         }
     }, [files, activeFileId, diagramStack.length]);
 
-    // Sync 3: Sync local changes back to store
+    // Sync 3: Push local code changes back to the store. Keyed on `code` (a user
+    // edit), NOT `files` — and skips the cycle right after a pull so the value
+    // doesn't ping-pong. Reads the latest store content via getState.
     useEffect(() => {
         if (!activeFileId || diagramStack.length > 0) return;
-        if (files[activeFileId] && code !== files[activeFileId].content) {
+        if (pullingRef.current) {
+            pullingRef.current = false; // this code change came from a pull; don't echo it back
+            return;
+        }
+        const stored = useFileStore.getState().files[activeFileId];
+        if (stored && code !== stored.content) {
             updateFile(activeFileId, code);
         }
-    }, [code, activeFileId, diagramStack.length, files]);
+    }, [code, activeFileId, diagramStack.length, updateFile]);
     const [nodes, setNodes, onNodesChange] = useNodesState([]);
     const [edges, setEdges, onEdgesChange] = useEdgesState([]);
 
@@ -197,6 +218,10 @@ function MermaidEditorContent() {
     const storeRef = useRef<GraphStore>(createGraphStore());
     const editSourceRef = useRef<'text' | 'graph'>('text');
     const connectStartRef = useRef<OnConnectStartParams | null>(null);
+    const insertCountRef = useRef(0);
+    const [drawerOpen, setDrawerOpen] = useState(false);
+    const [aiBusy, setAiBusy] = useState<string | null>(null);
+    const [aiError, setAiError] = useState<string | null>(null);
     const { project } = useReactFlow();
     const selectedNode = useMemo(
         () => nodes.find((node) => node.id === selectedNodeId) as Node<MermaidNodeData> | undefined,
@@ -449,6 +474,25 @@ function MermaidEditorContent() {
         [selectedNode]
     );
 
+    // Node styling. A local draft makes the controls feel instant; each change
+    // also writes the `style` object into the @node directive (round-trips).
+    const [styleDraft, setStyleDraft] = useState<NodeStyle>({});
+    useEffect(() => {
+        const meta = (selectedNode?.data?.meta ?? {}) as NodeMeta;
+        setStyleDraft((meta.style ?? {}) as NodeStyle);
+        // Resync only when the selected node changes, not on every reparse.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [selectedNodeId]);
+
+    const applyStyle = useCallback(
+        (patch: Partial<NodeStyle>) => {
+            const next: NodeStyle = { ...styleDraft, ...patch };
+            setStyleDraft(next);
+            updateSelectedNodeMeta({ style: next });
+        },
+        [styleDraft, updateSelectedNodeMeta]
+    );
+
     // --- Connectors: every gesture round-trips to mermaidman text ---
 
     // Resolve a flow-node UID to its current mermaid id (alias), with fallbacks.
@@ -626,6 +670,205 @@ function MermaidEditorContent() {
         [code, mermaidIdOf]
     );
 
+    // --- Creation drawer (P3): everything inserted is just mermaidman text ---
+
+    // A flow-space point near the viewport center, nudged each call so repeated
+    // inserts don't stack exactly on top of one another.
+    const nextInsertOrigin = useCallback(() => {
+        const n = insertCountRef.current++;
+        const base = project({ x: window.innerWidth / 2, y: window.innerHeight / 2 });
+        const jitter = (n % 6) * 28;
+        return { x: Math.round(base.x - 90 + jitter), y: Math.round(base.y - 40 + jitter) };
+    }, [project]);
+
+    // Insert a single node (from the Shapes / Nodes tabs).
+    const insertNode = useCallback(
+        (opts: InsertNodeOpts) => {
+            const store = storeRef.current;
+            const uid = newUid();
+            const mid = nextMermaidId(Object.values(store.alias.uidToMermaidId));
+            const label = opts.label ?? 'Node';
+            const { x, y } = nextInsertOrigin();
+
+            let next = insertNodeDeclaration(code, mid, label);
+            next = upsertNodeDirective(next, mid, {
+                uid,
+                x,
+                y,
+                ...(opts.kind ? { kind: opts.kind } : {}),
+            });
+            if (opts.shape && opts.shape !== 'rect') {
+                next = setNodeShape(next, mid, opts.shape, label);
+            }
+            editSourceRef.current = 'text';
+            setCode(next);
+        },
+        [code, nextInsertOrigin]
+    );
+
+    // Insert a template (multi-node snippet). Parse it, remap its ids to fresh
+    // ones, offset to the viewport, and write nodes + edges as new text.
+    const insertSnippet = useCallback(
+        (snippet: string) => {
+            if (!parse_mermaidman) return;
+            let parsed: { nodes?: any[]; edges?: any[] };
+            try {
+                parsed = parse_mermaidman(snippet) as any;
+            } catch {
+                return;
+            }
+            const store = storeRef.current;
+            const taken = new Set(Object.values(store.alias.uidToMermaidId));
+            const remap: Record<string, string> = {};
+            const origin = nextInsertOrigin();
+            let next = code;
+
+            (parsed.nodes ?? []).forEach((n: any, i: number) => {
+                const mid = nextMermaidId([...taken]);
+                taken.add(mid);
+                remap[n.id] = mid;
+                const label = n.label ?? mid;
+                const x = Math.round(origin.x + (typeof n.x === 'number' ? n.x : i * 180));
+                const y = Math.round(origin.y + (typeof n.y === 'number' ? n.y : 0));
+                next = insertNodeDeclaration(next, mid, label);
+                next = upsertNodeDirective(next, mid, { uid: newUid(), x, y });
+                if (n.shape && n.shape !== 'rect') {
+                    next = setNodeShape(next, mid, n.shape, label);
+                }
+            });
+
+            (parsed.edges ?? []).forEach((e: any) => {
+                const s = remap[e.source];
+                const t = remap[e.target];
+                if (!s || !t) return;
+                next = insertTopologyEdgeLine(next, s, t, '-->');
+                next = upsertEdgeDirective(next, newEid(), {
+                    source: s,
+                    target: t,
+                    ...(e.label ? { label: e.label } : {}),
+                });
+            });
+
+            editSourceRef.current = 'text';
+            setCode(next);
+            setDrawerOpen(false);
+        },
+        [code, parse_mermaidman, nextInsertOrigin]
+    );
+
+    // Insert a media node (from a pasted URL or a Giphy result).
+    const insertMedia = useCallback(
+        (src: string, alt?: string) => {
+            if (!src) return;
+            const store = storeRef.current;
+            const uid = newUid();
+            const mid = nextMermaidId(Object.values(store.alias.uidToMermaidId));
+            const label = alt || 'Image';
+            const { x, y } = nextInsertOrigin();
+            let next = insertNodeDeclaration(code, mid, label);
+            next = upsertNodeDirective(next, mid, {
+                uid,
+                x,
+                y,
+                kind: 'media',
+                media: { src, alt: alt || '' },
+            });
+            editSourceRef.current = 'text';
+            setCode(next);
+            setDrawerOpen(false);
+        },
+        [code, nextInsertOrigin]
+    );
+
+    // --- AI co-authoring (P5): results round-trip to text + @ai provenance ---
+    const runAi = useCallback(
+        async (action: 'summarize' | 'expand' | 'todiagram') => {
+            if (!selectedNode) return;
+            const store = storeRef.current;
+            const srcUid = selectedNode.id as UID;
+            const srcMid = selectedNode.data?.mermaidId ?? selectedNode.id;
+            const label = selectedNode.data?.label ?? srcMid;
+            const meta = (selectedNode.data?.meta ?? {}) as NodeMeta;
+            const content = [
+                typeof meta.markdown === 'string' ? meta.markdown : '',
+                typeof (meta.code as CodeMeta | undefined)?.content === 'string'
+                    ? (meta.code as CodeMeta).content
+                    : '',
+            ]
+                .filter(Boolean)
+                .join('\n');
+
+            setAiError(null);
+            setAiBusy(action);
+            try {
+                const res = await fetch('/api/ai', {
+                    method: 'POST',
+                    headers: { 'content-type': 'application/json' },
+                    body: JSON.stringify({ action, label, content }),
+                });
+                const json = (await res.json()) as { result?: any; model?: string; error?: string };
+                if (json.error) {
+                    setAiError(json.error);
+                    return;
+                }
+                const model = json.model ?? 'claude';
+                const ts = Date.now();
+                const origin = nextInsertOrigin();
+                let next = code;
+
+                if (action === 'summarize') {
+                    const summary: string = json.result?.summary ?? '';
+                    if (!summary) { setAiError('Empty summary.'); return; }
+                    const uid = newUid();
+                    const mid = nextMermaidId(Object.values(store.alias.uidToMermaidId));
+                    const eid = newEid();
+                    next = insertNodeDeclaration(next, mid, 'Summary');
+                    next = upsertNodeDirective(next, mid, {
+                        uid, x: origin.x, y: origin.y, kind: 'note', markdown: summary,
+                    });
+                    next = insertTopologyEdgeLine(next, srcMid, mid, '-->');
+                    next = upsertEdgeDirective(next, eid, { source: srcMid, target: mid });
+                    next = upsertAiDirective(next, mid, { action, model, ts, of: srcMid });
+                } else if (action === 'expand') {
+                    const items: string[] = Array.isArray(json.result?.items) ? json.result.items : [];
+                    if (!items.length) { setAiError('No sub-topics returned.'); return; }
+                    const taken = new Set(Object.values(store.alias.uidToMermaidId));
+                    items.slice(0, 6).forEach((item, i) => {
+                        const lbl = String(item).slice(0, 60) || 'Topic';
+                        const mid = nextMermaidId([...taken]);
+                        taken.add(mid);
+                        const uid = newUid();
+                        const eid = newEid();
+                        next = insertNodeDeclaration(next, mid, lbl);
+                        next = upsertNodeDirective(next, mid, {
+                            uid, x: origin.x + 200, y: origin.y + (i - items.length / 2) * 90,
+                        });
+                        next = insertTopologyEdgeLine(next, srcMid, mid, '-->');
+                        next = upsertEdgeDirective(next, eid, { source: srcMid, target: mid });
+                    });
+                    next = upsertAiDirective(next, srcMid, { action, model, ts, count: items.length });
+                } else {
+                    // todiagram: attach the generated flowchart as the node's nested diagram
+                    const mermaid: string = json.result?.mermaid ?? '';
+                    if (!mermaid) { setAiError('No diagram returned.'); return; }
+                    next = upsertNodeDirective(next, srcMid, {
+                        kind: 'diagram',
+                        diagram: { title: label, mermaidman: mermaid },
+                    });
+                    next = upsertAiDirective(next, srcMid, { action, model, ts });
+                }
+
+                editSourceRef.current = 'text';
+                setCode(next);
+            } catch {
+                setAiError('Could not reach the AI service.');
+            } finally {
+                setAiBusy(null);
+            }
+        },
+        [selectedNode, code, nextInsertOrigin]
+    );
+
     const selectedMeta = (selectedNode?.data?.meta ?? {}) as NodeMeta;
     const selectedKind =
         typeof selectedMeta.kind === 'string' ? selectedMeta.kind : selectedNode?.data?.kind;
@@ -778,9 +1021,29 @@ function MermaidEditorContent() {
                 </ReactFlow>
             </div>
 
+            {/* Creation drawer (Insert panel) */}
+            <CreationDrawer
+                open={drawerOpen}
+                onClose={() => setDrawerOpen(false)}
+                onInsertSnippet={insertSnippet}
+                onInsertNode={insertNode}
+                onInsertMedia={insertMedia}
+            />
+
             {/* Bottom Toolbar (Floating) */}
             <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-50 pointer-events-auto">
                 <div className="panel-base px-2 py-2 flex items-center gap-1">
+                    <Button
+                        variant={drawerOpen ? 'solid' : 'ghost'}
+                        color="blue"
+                        size="icon"
+                        className="rounded-md active:scale-95 transition-transform duration-150 ease-[cubic-bezier(0.32,0.72,0,1)]"
+                        title="Insert (templates, shapes, nodes)"
+                        onClick={() => setDrawerOpen((v) => !v)}
+                    >
+                        <Plus className="h-4 w-4" />
+                    </Button>
+                    <div className="h-6 w-[1px] bg-border mx-1" />
                     <Button variant="ghost" size="icon" className="rounded-md hover:bg-muted active:scale-95 transition-transform duration-150 ease-[cubic-bezier(0.32,0.72,0,1)]" title="Select (V)">
                         <MousePointer2 className="h-4 w-4" />
                     </Button>
@@ -870,6 +1133,122 @@ function MermaidEditorContent() {
                                             </option>
                                         ))}
                                     </select>
+                                </div>
+
+                                <Divider />
+
+                                {/* Style — round-trips into the @node `style` directive */}
+                                <div className="space-y-3">
+                                    <div className="flex items-center justify-between">
+                                        <label className="text-xs font-medium text-muted-foreground">Style</label>
+                                        <button
+                                            type="button"
+                                            className="text-[10px] text-muted-foreground hover:text-foreground transition-colors"
+                                            onClick={() => {
+                                                setStyleDraft({});
+                                                // Explicit undefined per key — the directive merge is a
+                                                // deep merge, so an empty object would keep old values.
+                                                updateSelectedNodeMeta({
+                                                    style: {
+                                                        fill: undefined,
+                                                        stroke: undefined,
+                                                        strokeWidth: undefined,
+                                                        opacity: undefined,
+                                                        radius: undefined,
+                                                    },
+                                                });
+                                            }}
+                                        >
+                                            Reset
+                                        </button>
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-3">
+                                        <label className="flex items-center justify-between gap-2 text-xs text-muted-foreground">
+                                            Fill
+                                            <input
+                                                type="color"
+                                                value={styleDraft.fill ?? '#ffffff'}
+                                                onChange={(e) => applyStyle({ fill: e.target.value })}
+                                                className="h-6 w-8 cursor-pointer rounded border border-input bg-transparent p-0"
+                                            />
+                                        </label>
+                                        <label className="flex items-center justify-between gap-2 text-xs text-muted-foreground">
+                                            Border
+                                            <input
+                                                type="color"
+                                                value={styleDraft.stroke ?? '#e4e4e7'}
+                                                onChange={(e) => applyStyle({ stroke: e.target.value })}
+                                                className="h-6 w-8 cursor-pointer rounded border border-input bg-transparent p-0"
+                                            />
+                                        </label>
+                                    </div>
+                                    <div className="space-y-1">
+                                        <div className="flex items-center justify-between text-[10px] text-muted-foreground">
+                                            <span>Border width</span><span>{styleDraft.strokeWidth ?? 1}px</span>
+                                        </div>
+                                        <input
+                                            type="range" min={0} max={6} step={1}
+                                            value={styleDraft.strokeWidth ?? 1}
+                                            onChange={(e) => applyStyle({ strokeWidth: Number(e.target.value) })}
+                                            className="w-full accent-primary"
+                                        />
+                                    </div>
+                                    <div className="space-y-1">
+                                        <div className="flex items-center justify-between text-[10px] text-muted-foreground">
+                                            <span>Corner radius</span><span>{styleDraft.radius ?? 8}px</span>
+                                        </div>
+                                        <input
+                                            type="range" min={0} max={28} step={1}
+                                            value={styleDraft.radius ?? 8}
+                                            onChange={(e) => applyStyle({ radius: Number(e.target.value) })}
+                                            className="w-full accent-primary"
+                                        />
+                                    </div>
+                                    <div className="space-y-1">
+                                        <div className="flex items-center justify-between text-[10px] text-muted-foreground">
+                                            <span>Opacity</span><span>{Math.round((styleDraft.opacity ?? 1) * 100)}%</span>
+                                        </div>
+                                        <input
+                                            type="range" min={20} max={100} step={1}
+                                            value={Math.round((styleDraft.opacity ?? 1) * 100)}
+                                            onChange={(e) => applyStyle({ opacity: Number(e.target.value) / 100 })}
+                                            className="w-full accent-primary"
+                                        />
+                                    </div>
+                                </div>
+
+                                <Divider />
+
+                                {/* AI co-authoring — results write back to text + @ai provenance */}
+                                <div className="space-y-2">
+                                    <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+                                        <Sparkles className="h-3.5 w-3.5 text-primary" /> AI
+                                    </div>
+                                    <div className="grid grid-cols-3 gap-1.5">
+                                        {([
+                                            { action: 'summarize', label: 'Summarize', icon: <Sparkles className="h-3.5 w-3.5" /> },
+                                            { action: 'expand', label: 'Expand', icon: <ListTree className="h-3.5 w-3.5" /> },
+                                            { action: 'todiagram', label: 'Diagram', icon: <Network className="h-3.5 w-3.5" /> },
+                                        ] as const).map((a) => (
+                                            <button
+                                                key={a.action}
+                                                type="button"
+                                                disabled={aiBusy !== null}
+                                                onClick={() => runAi(a.action)}
+                                                className="flex flex-col items-center gap-1 rounded-md border border-border/60 bg-background px-1.5 py-2 text-[10px] font-medium text-foreground transition-all duration-150 ease-[cubic-bezier(0.32,0.72,0,1)] hover:border-primary/50 hover:bg-muted active:scale-[0.97] disabled:opacity-50"
+                                            >
+                                                {aiBusy === a.action ? <Loader2 className="h-3.5 w-3.5 animate-spin text-primary" /> : <span className="text-primary">{a.icon}</span>}
+                                                {a.label}
+                                            </button>
+                                        ))}
+                                    </div>
+                                    {aiError && (
+                                        <div className="rounded-md border border-border/60 bg-muted/40 p-2 text-[10px] text-muted-foreground">
+                                            {aiError.includes('ANTHROPIC_API_KEY')
+                                                ? 'AI needs an Anthropic key — set ANTHROPIC_API_KEY in apps/web/.env.local.'
+                                                : aiError}
+                                        </div>
+                                    )}
                                 </div>
 
                                 {/* Dynamic Inspector Content based on Kind */}

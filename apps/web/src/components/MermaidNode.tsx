@@ -7,7 +7,19 @@ import { Input } from '@/components/radical-ai-studio-kit/radical-ai-studio-kit/
 import { Button } from '@/components/radical-ai-studio-kit/radical-ai-studio-kit/ui/Button';
 import { Textarea } from '@/components/radical-ai-studio-kit/radical-ai-studio-kit/ui/Textarea';
 import { cn } from '@/lib/utils';
-import { type NodeMeta, type DiagramMeta, type CodeMeta, type MediaMeta, type MermaidNodeData } from '@/types/mermaid';
+import { type NodeMeta, type DiagramMeta, type CodeMeta, type MediaMeta, type MermaidNodeData, type NodeStyle } from '@/types/mermaid';
+
+/** Translate a node's style directive into inline CSS overrides. */
+function styleToCss(style?: NodeStyle): React.CSSProperties {
+    const css: React.CSSProperties = {};
+    if (!style) return css;
+    if (style.fill) css.background = style.fill;
+    if (style.stroke) css.borderColor = style.stroke;
+    if (typeof style.strokeWidth === 'number') css.borderWidth = style.strokeWidth;
+    if (typeof style.opacity === 'number') css.opacity = style.opacity;
+    if (typeof style.radius === 'number') css.borderRadius = style.radius;
+    return css;
+}
 
 // --- Mermaid topology shapes ---------------------------------------------
 // Geometric shapes are rendered as a centered-label "glyph" via clip-path
@@ -35,7 +47,7 @@ const ROUNDED_SHAPES: Record<string, string> = {
 
 const GLYPH_SHAPES = new Set([...Object.keys(CLIP_SHAPES), ...Object.keys(ROUNDED_SHAPES)]);
 
-function GlyphNode({ shape, label, selected }: { shape: string; label: string; selected?: boolean }) {
+function GlyphNode({ shape, label, selected, style }: { shape: string; label: string; selected?: boolean; style?: NodeStyle }) {
     const clip = CLIP_SHAPES[shape];
     if (clip) {
         // Padding-gap border trick: the outer fill shows through as a 2px edge
@@ -43,14 +55,14 @@ function GlyphNode({ shape, label, selected }: { shape: string; label: string; s
         const extraPad = shape === 'rhombus' || shape === 'hexagon' ? 'px-10 py-7' : 'px-9 py-5';
         return (
             <div
-                style={{ clipPath: clip }}
+                style={{ clipPath: clip, opacity: style?.opacity, background: selected ? undefined : style?.stroke }}
                 className={cn(
                     'mm-node-enter p-[2px] transition-colors duration-150 ease-[cubic-bezier(0.32,0.72,0,1)]',
                     selected ? 'bg-primary' : 'bg-border'
                 )}
             >
                 <div
-                    style={{ clipPath: clip }}
+                    style={{ clipPath: clip, background: style?.fill }}
                     className={cn(
                         'flex items-center justify-center bg-card text-center text-sm font-medium text-foreground',
                         extraPad
@@ -63,6 +75,7 @@ function GlyphNode({ shape, label, selected }: { shape: string; label: string; s
     }
     return (
         <div
+            style={styleToCss(style)}
             className={cn(
                 'mm-node-enter flex items-center justify-center bg-card text-center text-sm font-medium text-foreground transition-all duration-150 ease-[cubic-bezier(0.32,0.72,0,1)]',
                 ROUNDED_SHAPES[shape],
@@ -96,6 +109,8 @@ export function MermaidNode({ data, selected }: NodeProps<MermaidNodeData>) {
     );
     const isGlyph = Boolean(shape && GLYPH_SHAPES.has(shape) && !hasRichContent);
 
+    const nodeStyle = data.meta?.style as NodeStyle | undefined;
+
     const handles = (
         <>
             <Handle
@@ -115,7 +130,7 @@ export function MermaidNode({ data, selected }: NodeProps<MermaidNodeData>) {
         return (
             <div className="relative group">
                 {handles}
-                <GlyphNode shape={shape!} label={data.label} selected={selected} />
+                <GlyphNode shape={shape!} label={data.label} selected={selected} style={nodeStyle} />
             </div>
         );
     }
@@ -125,6 +140,7 @@ export function MermaidNode({ data, selected }: NodeProps<MermaidNodeData>) {
             {handles}
             <Card
                 padding="none"
+                style={styleToCss(nodeStyle)}
                 className={cn(
                     "min-w-[180px] max-w-[320px] transition-all duration-150 ease-[cubic-bezier(0.32,0.72,0,1)] mm-node-enter",
                     // Topology shape (rounded variants only; geometric shapes render as glyphs)

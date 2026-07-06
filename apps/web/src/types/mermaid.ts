@@ -15,12 +15,21 @@ export type MediaMeta = {
     type?: 'image' | 'video' | 'embed';
 };
 
+export type NodeStyle = {
+    stroke?: string;       // border color
+    strokeWidth?: number;  // border width (px)
+    fill?: string;         // background color
+    opacity?: number;      // 0..1
+    radius?: number;       // corner radius (px)
+};
+
 export type NodeMeta = {
     kind?: string;
     diagram?: DiagramMeta;
     code?: CodeMeta;
     media?: MediaMeta;
     markdown?: string; // Simple string content for now
+    style?: NodeStyle;
     [key: string]: unknown;
 };
 

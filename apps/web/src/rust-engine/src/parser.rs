@@ -22,8 +22,15 @@ lazy_static! {
     // Middle-label link form, e.g. `A -- yes --> B` or `A == big ==> B`.
     // Captures the trailing connector + the label so we can normalize it to the
     // canonical pipe form `A -->|yes| B` before structural parsing.
+    //
+    // The closing connector MUST end in an arrowhead ([>ox]). Without that
+    // requirement, a chained *headless* link like `A --- B --- C` looks
+    // identical to a middle label (`--- B ---`) and would be wrongly collapsed
+    // to `A ---|B| C`, dropping node B. Requiring a head keeps chains intact;
+    // the only cost is that middle labels on headless links (rare, and itself
+    // ambiguous with chaining) are not recognized.
     static ref MIDDLE_LABEL_RE: Regex =
-        Regex::new(r"[<ox]?[-.=~]{2,}\s+(\S(?:[^|]*?\S)?)\s+([<ox]?[-.=~]{2,}[>ox]?)").unwrap();
+        Regex::new(r"[<ox]?[-.=~]{2,}\s+(\S(?:[^|]*?\S)?)\s+([-.=~]{2,}[>ox])").unwrap();
 }
 
 // --- Directive parsing (unchanged behavior, hoisted regexes) ---
@@ -464,6 +471,21 @@ mod tests {
         assert_eq!(grouped.len(), 4);
         for (s, t) in [("A", "C"), ("A", "D"), ("B", "C"), ("B", "D")] {
             assert!(grouped.iter().any(|e| e.source == s && e.target == t), "{s}->{t}");
+        }
+    }
+
+    #[test]
+    fn chained_headless_links_are_not_mislabeled() {
+        // Regression: `A --- B --- C` must stay a 3-node chain, not collapse to
+        // a single A->C edge labeled "B" (the middle-label normalizer used to
+        // match headless connectors).
+        for src in ["A --- B --- C", "A === B === C", "A -.- B -.- C"] {
+            let (nodes, edges) = parse(src);
+            assert_eq!(edges.len(), 2, "two edges for `{src}`");
+            assert_eq!(nodes.len(), 3, "three nodes for `{src}`");
+            assert!(edges.iter().all(|e| e.label.is_none()), "no labels for `{src}`");
+            assert!(edges.iter().any(|e| e.source == "A" && e.target == "B"), "A->B `{src}`");
+            assert!(edges.iter().any(|e| e.source == "B" && e.target == "C"), "B->C `{src}`");
         }
     }
 
