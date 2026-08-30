@@ -1,0 +1,5 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Security vulnerability
+    url: https://github.com/devrobinransom/mermaidman/security/policy
+    about: Please use the security policy instead of a public bug report for sensitive vulnerabilities.

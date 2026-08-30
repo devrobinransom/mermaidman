@@ -2,6 +2,16 @@
   "name": "mermaidman",
   "version": "0.1.0",
   "private": true,
+  "description": "Local-first visual Mermaid editor with a React Flow canvas, Rust/WASM parser, nested diagrams, and AI-assisted graph editing.",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/devrobinransom/mermaidman.git"
+  },
+  "bugs": {
+    "url": "https://github.com/devrobinransom/mermaidman/issues"
+  },
+  "homepage": "https://github.com/devrobinransom/mermaidman#readme",
   "packageManager": "pnpm@11.5.1",
   "scripts": {
     "dev": "pnpm --filter web dev",

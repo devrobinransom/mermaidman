@@ -1,0 +1,58 @@
+name: Feature request
+description: Propose a user-facing or architectural improvement
+title: "feat: "
+labels:
+  - enhancement
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Describe the problem first. Mermaidman is alpha, so proposals that simplify the architecture or preserve the source-native model are especially valuable.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem or workflow
+      description: What are you trying to do, and what prevents you from doing it today?
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed behavior
+      description: Describe the smallest useful solution. Mockups or example Mermaidman text are welcome.
+    validations:
+      required: true
+
+  - type: dropdown
+    id: surface
+    attributes:
+      label: Primary area
+      options:
+        - Canvas / editor UX
+        - Mermaid syntax / parser
+        - Mermaidman directives / file format
+        - Rich nodes / media
+        - AI-assisted editing
+        - Local projects / persistence
+        - Tauri desktop
+        - Search / backlinks
+        - Build / developer experience
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: compatibility
+    attributes:
+      label: Compatibility considerations
+      description: If this changes parser behavior or directives, how should existing documents and older clients behave?
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Checks
+      options:
+        - label: I searched existing issues for a similar proposal.
+          required: true
