@@ -12,7 +12,7 @@ Please follow the [Code of Conduct](CODE_OF_CONDUCT.md). Security-sensitive repo
 
 ### Prerequisites
 
-- Node.js 20+
+- Node.js 22.13+ (Node 24 is used in CI)
 - pnpm 11 (`package.json` pins `pnpm@11.5.1`)
 - Rust stable
 - `wasm-pack`
@@ -38,8 +38,13 @@ Copy `apps/web/.env.example` to `apps/web/.env.local` only if you need optional 
 
 ```dotenv
 ANTHROPIC_API_KEY=
+MERMAIDMAN_AI_ALLOW_PUBLIC=false
+MERMAIDMAN_AI_RATE_LIMIT_PER_MINUTE=8
+MERMAIDMAN_AI_ACCESS_TOKEN=
 GIPHY_API_KEY=
 ```
+
+Paid AI access fails closed unless a deployment policy is explicitly configured. See [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md).
 
 Never commit real API keys or credentials.
 
@@ -152,7 +157,7 @@ New directives are part of the project's interchange format. Treat them like an 
 
 The `/api/ai` route is optional infrastructure. Do not make the base editor depend on an API key. Keep provider secrets server-side and avoid logging user document content or credentials.
 
-A public deployment with AI enabled must add abuse controls such as authentication, quotas, or rate limiting before it should be considered production-ready.
+Public browser AI must be explicitly enabled and is rate-limited. Larger or horizontally scaled deployments should replace the in-memory limiter with authenticated sessions and a shared quota store. See [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md).
 
 ## Documentation
 
