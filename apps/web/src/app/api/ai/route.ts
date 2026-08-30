@@ -1,9 +1,11 @@
 import { NextResponse } from 'next/server';
 import Anthropic from '@anthropic-ai/sdk';
+import { authorizeAiRequest } from '@/lib/aiGuard';
 
 // Server-side Claude proxy for AI co-authoring (summarize / expand / to-diagram).
-// Keeps ANTHROPIC_API_KEY off the client. Without a key it returns a graceful
-// error so the UI can show a hint instead of crashing.
+// Keeps ANTHROPIC_API_KEY off the client. Production access fails closed unless
+// the deployment explicitly enables same-origin public AI or configures an
+// access token. See apps/web/.env.example and docs/DEPLOYMENT.md.
 
 export const runtime = 'nodejs';
 
@@ -30,7 +32,7 @@ const SPECS: Record<
         user: (label, content) => `Break this topic into sub-topics.\nTopic: ${label}\n${content ? `Context:\n${content}` : ''}`,
         schema: {
             type: 'object',
-            properties: { items: { type: 'array', items: { type: 'string' } } },
+            properties: { items: { type: 'array', items: { type: 'string' } },
             required: ['items'],
             additionalProperties: false,
         },
@@ -51,19 +53,31 @@ const SPECS: Record<
 export async function POST(request: Request) {
     const key = process.env.ANTHROPIC_API_KEY;
     if (!key) {
-        return NextResponse.json({ error: 'ANTHROPIC_API_KEY not configured' }, { status: 200 });
+        return NextResponse.json(
+            { error: 'ANTHROPIC_API_KEY not configured', code: 'ai_provider_not_configured' },
+            { status: 503 }
+        );
+    }
+
+    const gate = authorizeAiRequest(request);
+    if (!gate.ok) {
+        const headers = gate.retryAfter ? { 'Retry-After': String(gate.retryAfter) } : undefined;
+        return NextResponse.json(
+            { error: gate.error, code: gate.code },
+            { status: gate.status, headers }
+        );
     }
 
     let body: { action?: Action; label?: string; content?: string };
     try {
         body = await request.json();
     } catch {
-        return NextResponse.json({ error: 'invalid request body' }, { status: 400 });
+        return NextResponse.json({ error: 'invalid request body', code: 'invalid_request' }, { status: 400 });
     }
 
     const action = body.action;
     if (!action || !SPECS[action]) {
-        return NextResponse.json({ error: 'unknown action' }, { status: 400 });
+        return NextResponse.json({ error: 'unknown action', code: 'unknown_action' }, { status: 400 });
     }
     const spec = SPECS[action];
     const label = (body.label ?? '').slice(0, 2000);
@@ -80,7 +94,10 @@ export async function POST(request: Request) {
         });
 
         if (response.stop_reason === 'refusal') {
-            return NextResponse.json({ error: 'The request was declined.' }, { status: 200 });
+            return NextResponse.json(
+                { error: 'The request was declined.', code: 'ai_refusal' },
+                { status: 200 }
+            );
         }
 
         const text = response.content.find((b) => b.type === 'text') as { text: string } | undefined;
@@ -94,6 +111,6 @@ export async function POST(request: Request) {
         return NextResponse.json({ result, model: response.model });
     } catch (err) {
         const message = err instanceof Anthropic.APIError ? err.message : 'AI request failed';
-        return NextResponse.json({ error: message }, { status: 200 });
+        return NextResponse.json({ error: message, code: 'ai_provider_error' }, { status: 502 });
     }
 }
