@@ -1,10 +1,15 @@
-import { type MermaidFile } from '@/store/fileStore';
+import { type MermaidFile, useFileStore } from '@/store/fileStore';
+
+function getActiveFile(files: Record<string, MermaidFile>): MermaidFile | undefined {
+    const activeFileId = useFileStore.getState().activeFileId;
+    if (activeFileId && files[activeFileId]) {
+        return files[activeFileId];
+    }
+    return Object.values(files)[0];
+}
 
 export function exportToMermaid(files: Record<string, MermaidFile>): string {
-    const activeFile = Object.values(files).find(file => file.id === 'default') || Object.values(files)[0];
-    if (!activeFile) return '';
-
-    return activeFile.content;
+    return getActiveFile(files)?.content ?? '';
 }
 
 export function exportToJSON(files: Record<string, MermaidFile>): string {
@@ -12,7 +17,7 @@ export function exportToJSON(files: Record<string, MermaidFile>): string {
 }
 
 export function exportToMarkdown(files: Record<string, MermaidFile>): string {
-    const activeFile = Object.values(files).find(file => file.id === 'default') || Object.values(files)[0];
+    const activeFile = getActiveFile(files);
     if (!activeFile) return '';
 
     return '```mermaid\n' + activeFile.content + '\n```';
