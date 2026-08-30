@@ -1,6 +1,6 @@
 use mermaidman_engine::parser::parse_logic;
 
-const SHARED_BASIC: &str = include_str!("../../../../../../fixtures/parser/shared-basic.mmd");
+const SHARED_BASIC: &str = include_str!("../../../../../fixtures/parser/shared-basic.mmd");
 
 #[test]
 fn parses_shared_basic_fixture() {
