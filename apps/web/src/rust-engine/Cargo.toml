@@ -6,6 +6,9 @@
 name = "mermaidman-engine"
 version = "0.1.0"
 edition = "2021"
+description = "Browser Rust/WASM parser engine for Mermaidman"
+repository = "https://github.com/devrobinransom/mermaidman"
+license = "MIT"
 
 [lib]
 crate-type = ["cdylib", "rlib"]
