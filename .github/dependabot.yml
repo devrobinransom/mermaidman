@@ -8,6 +8,10 @@ updates:
       web-dependencies:
         patterns:
           - "*"
+    ignore:
+      - dependency-name: "*"
+        update-types:
+          - version-update:semver-major
     open-pull-requests-limit: 5
 
   - package-ecosystem: cargo
@@ -18,6 +22,10 @@ updates:
       rust-workspace:
         patterns:
           - "*"
+    ignore:
+      - dependency-name: "*"
+        update-types:
+          - version-update:semver-major
     open-pull-requests-limit: 5
 
   - package-ecosystem: cargo
@@ -28,4 +36,8 @@ updates:
       web-wasm-engine:
         patterns:
           - "*"
+    ignore:
+      - dependency-name: "*"
+        update-types:
+          - version-update:semver-major
     open-pull-requests-limit: 5
