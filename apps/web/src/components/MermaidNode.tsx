@@ -1,13 +1,11 @@
-
 import React from 'react';
 import { Handle, Position, NodeProps } from 'reactflow';
 import { Card } from '@/components/radical-ai-studio-kit/radical-ai-studio-kit/ui/Card';
 import { Badge } from '@/components/radical-ai-studio-kit/radical-ai-studio-kit/ui/Badge';
-import { Input } from '@/components/radical-ai-studio-kit/radical-ai-studio-kit/ui/Input';
 import { Button } from '@/components/radical-ai-studio-kit/radical-ai-studio-kit/ui/Button';
-import { Textarea } from '@/components/radical-ai-studio-kit/radical-ai-studio-kit/ui/Textarea';
 import { cn } from '@/lib/utils';
-import { type NodeMeta, type DiagramMeta, type CodeMeta, type MediaMeta, type MermaidNodeData, type NodeStyle } from '@/types/mermaid';
+import { type MediaMeta, type MermaidNodeData, type NodeStyle } from '@/types/mermaid';
+import { normalizeEmbedUrl } from '@/utils/safeEmbed';
 
 /** Translate a node's style directive into inline CSS overrides. */
 function styleToCss(style?: NodeStyle): React.CSSProperties {
@@ -85,6 +83,32 @@ function GlyphNode({ shape, label, selected, style }: { shape: string; label: st
             )}
         >
             <span className="max-w-[180px] break-words leading-tight">{label}</span>
+        </div>
+    );
+}
+
+function SafeEmbedFrame({ src, title }: { src: string; title: string }) {
+    const embed = normalizeEmbedUrl(src);
+    if (!embed) {
+        return (
+            <div className="flex h-[110px] w-[300px] items-center justify-center rounded-md border border-border/60 bg-muted/40 px-4 text-center text-[11px] leading-relaxed text-muted-foreground">
+                External embed blocked. Mermaidman currently allows HTTPS embeds from YouTube, Vimeo, and Figma.
+            </div>
+        );
+    }
+
+    return (
+        <div className="overflow-hidden rounded-md w-[300px] h-[170px] bg-black">
+            <iframe
+                src={embed.src}
+                title={title}
+                className="w-full h-full border-0"
+                sandbox="allow-scripts allow-same-origin allow-presentation"
+                allow="autoplay; encrypted-media; picture-in-picture; fullscreen"
+                referrerPolicy="strict-origin-when-cross-origin"
+                loading="lazy"
+                allowFullScreen
+            />
         </div>
     );
 }
@@ -207,14 +231,10 @@ export function MermaidNode({ data, selected }: NodeProps<MermaidNodeData>) {
 
                     {/* Embed content */}
                     {kind === 'oembed' && (data.meta?.media as MediaMeta | undefined)?.src && (
-                        <div className="overflow-hidden rounded-md w-[300px] h-[170px] bg-black">
-                            <iframe
-                                src={(data.meta?.media as MediaMeta).src}
-                                title={data.label}
-                                className="w-full h-full border-0"
-                                allowFullScreen
-                            />
-                        </div>
+                        <SafeEmbedFrame
+                            src={(data.meta?.media as MediaMeta).src ?? ''}
+                            title={data.label}
+                        />
                     )}
 
                     {/* Text content */}
@@ -237,14 +257,10 @@ export function MermaidNode({ data, selected }: NodeProps<MermaidNodeData>) {
 
                     {/* Embed content */}
                     {kind === 'embed' && (data.meta?.media as MediaMeta | undefined)?.src && (
-                        <div className="overflow-hidden rounded-md w-[300px] h-[170px] bg-black">
-                            <iframe
-                                src={(data.meta?.media as MediaMeta).src}
-                                title={data.label}
-                                className="w-full h-full border-0"
-                                allowFullScreen
-                            />
-                        </div>
+                        <SafeEmbedFrame
+                            src={(data.meta?.media as MediaMeta).src ?? ''}
+                            title={data.label}
+                        />
                     )}
 
                     {/* Diagram Preview */}
