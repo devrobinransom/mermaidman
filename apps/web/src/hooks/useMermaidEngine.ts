@@ -1,6 +1,34 @@
 import { useEffect, useState } from 'react';
 
-type ParseMermaidman = (input: string) => unknown;
+export type MermaidParsedNode = {
+  id: string;
+  label?: string;
+  x?: number;
+  y?: number;
+  uid?: string;
+  shape?: string;
+  meta?: Record<string, unknown>;
+};
+
+export type MermaidParsedEdge = {
+  source: string;
+  target: string;
+  label?: string;
+  eid?: string;
+  line?: string;
+  head_end?: string;
+  head_start?: string;
+  length?: number;
+  meta?: Record<string, unknown>;
+};
+
+export type MermaidParseResult = {
+  clean_code?: string;
+  nodes: MermaidParsedNode[];
+  edges: MermaidParsedEdge[];
+};
+
+type ParseMermaidman = (input: string) => MermaidParseResult;
 type UpdateMermaidmanNode = (input: string, nodeId: string, x: number, y: number) => string;
 
 type MermaidWasmModule = {
@@ -12,6 +40,14 @@ type MermaidWasmModule = {
 type EngineFunctions = {
   parse_mermaidman: ParseMermaidman;
   update_mermaidman_node: UpdateMermaidmanNode;
+};
+
+const parserNotReady: ParseMermaidman = () => {
+  throw new Error('Mermaidman WASM parser is not ready');
+};
+
+const updaterNotReady: UpdateMermaidmanNode = () => {
+  throw new Error('Mermaidman WASM updater is not ready');
 };
 
 export function useMermaidEngine() {
@@ -48,7 +84,7 @@ export function useMermaidEngine() {
 
   return {
     isReady,
-    parse_mermaidman: engineFunctions?.parse_mermaidman,
-    update_mermaidman_node: engineFunctions?.update_mermaidman_node,
+    parse_mermaidman: engineFunctions?.parse_mermaidman ?? parserNotReady,
+    update_mermaidman_node: engineFunctions?.update_mermaidman_node ?? updaterNotReady,
   };
 }
