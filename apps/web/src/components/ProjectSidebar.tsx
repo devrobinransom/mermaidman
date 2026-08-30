@@ -1,11 +1,10 @@
 import React, { useState } from 'react';
 import { useFileStore } from '@/store/fileStore';
-import { Card, CardHeader, CardContent } from '@/components/radical-ai-studio-kit/radical-ai-studio-kit/ui/Card';
 import { Button } from '@/components/radical-ai-studio-kit/radical-ai-studio-kit/ui/Button';
 import { cn } from '@/utils/cn';
-import { Folder, Plus, Trash2, FileText, ChevronLeft, ChevronRight, LayoutGrid, Search, Star, Clock, Tag } from 'lucide-react';
+import { Folder, Plus, Trash2, FileText, ChevronLeft, LayoutGrid, Search, Star, Clock, Tag } from 'lucide-react';
 import { Input } from '@/components/radical-ai-studio-kit/radical-ai-studio-kit/ui/Input';
-import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/radical-ai-studio-kit/radical-ai-studio-kit/ui/Tabs';
+import { Tabs, TabsList, TabsTrigger } from '@/components/radical-ai-studio-kit/radical-ai-studio-kit/ui/Tabs';
 
 export function ProjectSidebar() {
     const { files, activeFileId, createFile, deleteFile, setActiveFile, updateFileTitle } = useFileStore();
@@ -143,7 +142,7 @@ export function ProjectSidebar() {
                 </div>
 
                 <div className="p-4 border-t border-border/50 text-[10px] text-muted-foreground text-center">
-                    MermaidMan v0.2.0
+                    MermaidMan v0.1.0
                 </div>
             </div>
         </>
