@@ -12,6 +12,9 @@
     "url": "https://github.com/devrobinransom/mermaidman/issues"
   },
   "homepage": "https://github.com/devrobinransom/mermaidman#readme",
+  "engines": {
+    "node": ">=22.13.0"
+  },
   "packageManager": "pnpm@11.5.1",
   "scripts": {
     "dev": "pnpm --filter web dev",
