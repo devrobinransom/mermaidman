@@ -32,7 +32,7 @@ const SPECS: Record<
         user: (label, content) => `Break this topic into sub-topics.\nTopic: ${label}\n${content ? `Context:\n${content}` : ''}`,
         schema: {
             type: 'object',
-            properties: { items: { type: 'array', items: { type: 'string' } },
+            properties: { items: { type: 'array', items: { type: 'string' } } },
             required: ['items'],
             additionalProperties: false,
         },
