@@ -1,19 +1,34 @@
 import { useEffect, useState } from 'react';
 
+type ParseMermaidman = (input: string) => unknown;
+type UpdateMermaidmanNode = (input: string, nodeId: string, x: number, y: number) => string;
+
+type MermaidWasmModule = {
+  default: (input?: { module_or_path?: string }) => Promise<unknown>;
+  parse_mermaidman: ParseMermaidman;
+  update_mermaidman_node: UpdateMermaidmanNode;
+};
+
+type EngineFunctions = {
+  parse_mermaidman: ParseMermaidman;
+  update_mermaidman_node: UpdateMermaidmanNode;
+};
+
 export function useMermaidEngine() {
   const [isReady, setIsReady] = useState(false);
-  const [engineFunctions, setEngineFunctions] = useState<any>(null);
+  const [engineFunctions, setEngineFunctions] = useState<EngineFunctions | null>(null);
 
   useEffect(() => {
     async function initWasm() {
       try {
-        // Load the JS wrapper from the public directory at runtime
-        // This bypasses Turbopack/Webpack resolution entirely
-        // @ts-ignore
-        const wasmModule = await import(/* webpackIgnore: true */ '/wasm/mermaidman_engine.js');
+        // Keep the import path dynamic so TypeScript/Next do not try to bundle
+        // the wasm-pack wrapper. The file is served from public/wasm at runtime.
+        const wasmAssetUrl = '/wasm/mermaidman_engine.js';
+        const wasmModule = (await import(
+          /* webpackIgnore: true */ wasmAssetUrl
+        )) as MermaidWasmModule;
         const init = wasmModule.default;
 
-        // Initialize with the binary path (new-style init object avoids deprecation warnings)
         await init({ module_or_path: '/wasm/mermaidman_engine_bg.wasm' });
 
         setEngineFunctions({
@@ -21,19 +36,19 @@ export function useMermaidEngine() {
           update_mermaidman_node: wasmModule.update_mermaidman_node,
         });
 
-        console.log("Rust Engine Loaded via Full Asset Pattern");
+        console.log('Rust Engine Loaded via Full Asset Pattern');
         setIsReady(true);
       } catch (err) {
-        console.error("Failed to load Rust Engine from public/wasm:", err);
+        console.error('Failed to load Rust Engine from public/wasm:', err);
       }
     }
 
-    initWasm();
+    void initWasm();
   }, []);
 
   return {
     isReady,
     parse_mermaidman: engineFunctions?.parse_mermaidman,
-    update_mermaidman_node: engineFunctions?.update_mermaidman_node
+    update_mermaidman_node: engineFunctions?.update_mermaidman_node,
   };
 }
