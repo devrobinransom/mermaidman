@@ -212,6 +212,10 @@ Contributions are welcome. Please read [`CONTRIBUTING.md`](CONTRIBUTING.md) befo
 - Security issues: follow [`SECURITY.md`](SECURITY.md) and do not publish sensitive vulnerability details in a normal issue.
 - Community expectations: see [`CODE_OF_CONDUCT.md`](CODE_OF_CONDUCT.md).
 
+## Plan and language
+
+The forward plan (phased, with demos and kill tests) is in [`docs/PLAN.md`](docs/PLAN.md). Kernel semantics, the `%% @mm` directive schema and the example corpus are in [`docs/LANGUAGE.md`](docs/LANGUAGE.md).
+
 ## Project audit
 
 A code-level audit of the first-party application/runtime paths is maintained in [`docs/PROJECT_AUDIT.md`](docs/PROJECT_AUDIT.md). It covers the web editor, active WASM engine, browser stores/source mutators, shared Rust core, and Tauri foundation, while excluding generated binaries/glue, lockfiles, and most auxiliary demo-kit code.
