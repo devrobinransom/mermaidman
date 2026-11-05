@@ -10,7 +10,7 @@ members = [
 version = "0.1.0"
 edition = "2021"
 authors = ["Mermaidman Team"]
-license = "MIT"
+license = "LicenseRef-Proprietary"
 
 [workspace.dependencies]
 # Core deps shared across crates
