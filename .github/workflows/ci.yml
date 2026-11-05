@@ -56,6 +56,9 @@ jobs:
       - name: Build browser WASM assets
         run: pnpm wasm:build
 
+      - name: Unit test web app
+        run: pnpm test:web
+
       - name: Lint web app
         run: pnpm lint
 

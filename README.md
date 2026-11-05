@@ -161,6 +161,7 @@ pnpm dev          # Next.js development server
 pnpm dev:raw      # Next.js directly, without the open-port helper
 pnpm build        # production web build
 pnpm lint         # web lint
+pnpm test:web # unit tests for the AI request guard, embed URL allow-list and export helpers
 pnpm wasm:build   # build active browser Rust engine -> public/wasm
 ```
 
