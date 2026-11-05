@@ -18,7 +18,7 @@ tauri-plugin-fs = "2"
 tauri-plugin-shell = "2"
 
 # Type-safe bindings
-specta = { version = "=2.0.0-rc.20" }
+specta = { version = "=2.0.0-rc.27" }
 tauri-specta = { version = "=2.0.0-rc.20", features = ["typescript"] }
 
 # Database
