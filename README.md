@@ -2,7 +2,6 @@
 
 > A source-native visual editor for Mermaid flowcharts, powered by React Flow and Rust/WASM.
 
-[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 ![Status: Alpha](https://img.shields.io/badge/status-alpha-orange.svg)
 ![Next.js](https://img.shields.io/badge/Next.js-16-black.svg)
 ![Rust/WASM](https://img.shields.io/badge/Rust-WASM-000000.svg)
@@ -161,6 +160,7 @@ pnpm dev          # Next.js development server
 pnpm dev:raw      # Next.js directly, without the open-port helper
 pnpm build        # production web build
 pnpm lint         # web lint
+pnpm test:web # unit tests for the AI request guard, embed URL allow-list and export helpers
 pnpm wasm:build   # build active browser Rust engine -> public/wasm
 ```
 
@@ -218,4 +218,4 @@ A code-level audit of the first-party application/runtime paths is maintained in
 
 ## License
 
-Mermaidman is licensed under the [MIT License](LICENSE). Third-party packages and separately sourced components remain subject to their respective licenses and notices.
+Mermaidman is proprietary software; see [LICENSE](LICENSE). Third-party packages and separately sourced components remain subject to their respective licenses and notices.
